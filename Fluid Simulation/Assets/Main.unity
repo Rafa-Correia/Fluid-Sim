@@ -152,16 +152,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a0c1bb06a66a32646bcba9d9083289ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  numParticles: 400
-  gravity: 0
+  numParticles: 1024
+  gravity: 10
   mass: 1
   particleSize: 0.05
-  particleSpacing: 0
-  bounceCoeficient: 0.8
+  particleSpacing: 0.03
+  bounceCoeficient: 0.3
   smoothingRadius: 1
   boundarySize: {x: 17.5, y: 10}
-  targetDensity: 1
-  pressureMultiplier: 0
+  targetDensity: 20
+  pressureMultiplier: 500
+  densities: []
 --- !u!4 &987820982
 Transform:
   m_ObjectHideFlags: 0

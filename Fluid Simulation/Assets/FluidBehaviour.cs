@@ -25,8 +25,9 @@ public class FluidBehaviour : MonoBehaviour
     public Vector2 boundarySize;
     public float targetDensity;
     public float pressureMultiplier;
-    private float[] densities;
+    public float[] densities;
     private Vector2[] predictedPositions;
+    private Vector2 randomVector;
 
     void Start()
     {
@@ -49,14 +50,15 @@ public class FluidBehaviour : MonoBehaviour
 
     void Update()
     {
-        SimulationStep(Time.deltaTime);
-
+        SimulationStep(1/60f);
+        Draw.Point(Vector3.zero, smoothingRadius, Color.red);
         for(int i = 0; i < numParticles; i++) {
             Draw.Point(new Vector3(positions[i].x, positions[i].y, 0), particleSize, Color.white);
         }
 
+        float random = UnityEngine.Random.Range(0f, 260f);
+        randomVector = new Vector2(Mathf.Cos(random), Mathf.Sin(random));
 
-        
         Draw.BoxOutline(Vector2.zero, boundarySize, 0.1f, Color.white, 1);
     }
 
@@ -88,8 +90,9 @@ public class FluidBehaviour : MonoBehaviour
     float smoothingKernel(float dst){
         if (dst >= smoothingRadius) return 0;
 
-        float volume = (float)Math.PI * (float)Math.Pow(smoothingRadius, 4) / 6;
-        return (smoothingRadius - dst) * (smoothingRadius - dst) / volume;
+        float volume = Mathf.PI * Mathf.Pow(smoothingRadius, 4);
+        float value = smoothingRadius-dst;
+        return value*value*value*6/volume;
     }
 
     float smoothingKernelDerivative(float dst) {
@@ -102,9 +105,10 @@ public class FluidBehaviour : MonoBehaviour
     float calculateDensity (Vector2 samplePoint) {
         float density=0;
 
-        foreach(Vector2 point in positions){
+        for(int i = 0; i < numParticles; i++){
+            Vector2 point = predictedPositions[i];
             float dst = (point - samplePoint).magnitude;
-            float influence = smoothingKernelDerivative(dst);
+            float influence = smoothingKernel(dst);
             density += influence*mass;
         }
 
@@ -125,26 +129,36 @@ public class FluidBehaviour : MonoBehaviour
 
             Vector2 offset = positions[i] - positions[particleIndex];
             float dst = offset.magnitude;
-            Vector2 dir = dst == 0 ? Vector2.one : offset / dst;
+            Vector2 dir = dst == 0 ? randomVector : offset / dst;
 
             float slope = smoothingKernelDerivative(dst);
             float density = densities[i];
-            pressureForce += -ConvertDensityToPressure(density) * dir * slope * mass / density; 
+            float sharedPressure = CalculateSharedPressure(density, densities[particleIndex]);
+            pressureForce += sharedPressure * dir * slope * mass / density; 
         }
 
         return pressureForce;
     }
 
+    float CalculateSharedPressure (float a, float b) {
+        float pressureA = ConvertDensityToPressure(a);
+        float pressureB = ConvertDensityToPressure(b);
+        return(pressureA+pressureB)/2;
+    }
 
 
 
 
     void SimulationStep (float deltaTime) {
-        //Apply gravity and calculate densities
+        //Apply gravity and predict positions
         Parallel.For(0, numParticles, i =>{
             velocities[i] += Vector2.down * gravity * deltaTime;
             predictedPositions[i] = positions[i] + velocities[i] * deltaTime; 
-            densities[i] = calculateDensity(predictedPositions[i]);
+        });
+
+        //Calculate Density
+        Parallel.For(0, numParticles, i =>{
+            densities[i]=calculateDensity(predictedPositions[i]);
         });
 
         //Apply pressure force
